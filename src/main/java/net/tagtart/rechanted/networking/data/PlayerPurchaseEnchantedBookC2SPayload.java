@@ -80,11 +80,11 @@ public record PlayerPurchaseEnchantedBookC2SPayload(int bookPropertiesIndex, Blo
             if (enchTableEntity == null)
                 return;
 
-            var bookshelves = UtilFunctions.scanAroundBlockForBookshelves(level, payload.enchantTablePos);
+            var powerSources = UtilFunctions.scanEnchantingPowerSources(level, payload.enchantTablePos);
             var floorBlocks = UtilFunctions.scanAroundBlockForValidFloors(bookProperties.floorBlock, level, payload.enchantTablePos);
 
             boolean meetsEXPRequirement = UtilFunctions.playerMeetsExpRequirement(bookProperties, player);
-            boolean meetsBookshelfRequirement = UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, UtilFunctions.getEnchantingPower(level, bookshelves));
+            boolean meetsPowerRequirement = UtilFunctions.playerMeetsEnchantingPowerRequirement(bookProperties, powerSources.totalPower());
             boolean meetsFloorBlocksRequirement = UtilFunctions.playerMeetsFloorRequirement(bookProperties, floorBlocks.getA());
             boolean meetsLapisRequirement = UtilFunctions.playerMeetsLapisRequirement(bookProperties, enchTableEntity.getItemHandlerLapisStack());
             boolean validEntityState = enchTableEntity.tableState == RechantedTableBlockEntity.CustomRechantedTableState.Normal;
@@ -96,7 +96,7 @@ public record PlayerPurchaseEnchantedBookC2SPayload(int bookPropertiesIndex, Blo
 
                 // Check basic requirements with helper methods.
             else if (!meetsEXPRequirement) failCase = PurchaseBookResultCase.INSUFFICIENT_EXP;
-            else if (!meetsBookshelfRequirement) failCase = PurchaseBookResultCase.INSUFFICIENT_BOOKS;
+            else if (!meetsPowerRequirement) failCase = PurchaseBookResultCase.INSUFFICIENT_BOOKS;
             else if (!meetsFloorBlocksRequirement) failCase = PurchaseBookResultCase.INSUFFICIENT_FLOOR;
             else if (!meetsLapisRequirement) failCase = PurchaseBookResultCase.INSUFFICIENT_LAPIS;
             else if (!validEntityState) failCase = PurchaseBookResultCase.BONUS_PENDING;
@@ -107,20 +107,7 @@ public record PlayerPurchaseEnchantedBookC2SPayload(int bookPropertiesIndex, Blo
                 SoundEvent soundToPlay = SoundEvents.EXPERIENCE_ORB_PICKUP;
                 Random random = new Random();
 
-                // Destroy block at that position if rolls to do it. Also don't check more than
-                // the number of shelves that are actually required just in case they all roll to break somehow.
-                // Check via random indices as well.
-                ArrayList<Integer> randomIndices = new ArrayList<>();
-                for (int i = 0; i < bookshelves.getB().length; ++i) {
-                    randomIndices.add(i);
-                }
-                Collections.shuffle(randomIndices);
-                for (int i = 0; i < bookshelves.getB().length && i < bookProperties.requiredBookShelves; ++i) {
-                    int bookIndex = randomIndices.get(i);
-                    BlockPos position = bookshelves.getB()[bookIndex];
-                    if (random.nextFloat() < bookProperties.bookBreakChance)
-                        level.destroyBlock(position, false);
-                }
+                powerSources.consume(level, bookProperties.requiredBookShelves, bookProperties.bookBreakChance, random);
 
                 // Do same for floor blocks, with extra logic prevent the block under
                 // the table from breaking if possible.

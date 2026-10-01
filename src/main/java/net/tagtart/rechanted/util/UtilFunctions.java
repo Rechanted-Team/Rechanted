@@ -320,19 +320,8 @@ public class UtilFunctions {
         return getPlayerExperiencePoints(player) >= bookProperties.requiredExp;
     }
 
-    public static boolean playerMeetsBookshelfRequirement(BookRarityProperties bookProperties, double enchantingPower) {
-        return enchantingPower >= bookProperties.requiredBookShelves;
-    }
-
-    public static double getEnchantingPower(Level level, Pair<BlockState[], BlockPos[]> sources) {
-        double enchantingPower = 0;
-        for (int i = 0; i < sources.getA().length; ++i) {
-            float power = sources.getA()[i].getEnchantPowerBonus(level, sources.getB()[i]);
-            if (power > 0) {
-                enchantingPower += power;
-            }
-        }
-        return enchantingPower;
+    public static boolean playerMeetsEnchantingPowerRequirement(BookRarityProperties bookProperties, double enchantingPower) {
+        return EnchantingPowerSources.meetsRequirement(enchantingPower, bookProperties.requiredBookShelves);
     }
 
     // Note that is checks if the blocks match the required type for safety.
@@ -351,34 +340,23 @@ public class UtilFunctions {
         return inventoryItemStack.getCount() >= bookProperties.requiredLapis;
     }
 
-    public static Pair<BlockState[], BlockPos[]> scanAroundBlockForBookshelves(Level level, BlockPos blockPos){
-
-        // Might read these from config instead but probably not for now?
-        // Compute AABB corners for scanning level:
-        Vec3i bookshelfCheckLowerLeftOffset = new Vec3i(3, 0, 3);
-        Vec3i bookshelfCheckUpperRightOffset = new Vec3i(3, 2, 3);
-
-        var blockInfo = UtilFunctions.getAllBlockInfoAroundBlock(
-                level,
-                blockPos,
-                bookshelfCheckLowerLeftOffset,
-                bookshelfCheckUpperRightOffset,
-                null
-        );
-
-        // Keep states and positions aligned, including only positive power providers.
-        // The positions also determine which blocks can be consumed during a purchase.
-        ArrayList<BlockState> states = new ArrayList<>();
-        ArrayList<BlockPos> positions = new ArrayList<>();
-        for (int i = 0; i < blockInfo.getA().length; ++i) {
-            BlockState state = blockInfo.getA()[i];
-            BlockPos pos = blockInfo.getB()[i];
-            if (state.getEnchantPowerBonus(level, pos) > 0) {
-                states.add(state);
-                positions.add(pos);
+    public static EnchantingPowerSources scanEnchantingPowerSources(Level level, BlockPos tablePos) {
+        List<EnchantingPowerSources.Provider> providers = new ArrayList<>();
+        double totalPower = 0;
+        // Preserve Rechanted's 7x3x7 area and placement rules; no vanilla air gap.
+        for (int x = tablePos.getX() - 3; x <= tablePos.getX() + 3; ++x) {
+            for (int y = tablePos.getY(); y <= tablePos.getY() + 2; ++y) {
+                for (int z = tablePos.getZ() - 3; z <= tablePos.getZ() + 3; ++z) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    float power = level.getBlockState(pos).getEnchantPowerBonus(level, pos);
+                    if (Float.isFinite(power) && power > 0) {
+                        totalPower += power;
+                        providers.add(new EnchantingPowerSources.Provider(pos, power));
+                    }
+                }
             }
         }
-        return new Pair<>(states.toArray(BlockState[]::new), positions.toArray(BlockPos[]::new));
+        return new EnchantingPowerSources(totalPower, providers);
     }
 
     public static Pair<BlockState[], BlockPos[]> scanAroundBlockForValidFloors(Block validBlock, Level level, BlockPos blockPos){
@@ -400,10 +378,10 @@ public class UtilFunctions {
     public static boolean playerMeetsAllEnchantRequirements(BookRarityProperties bookProperties, Player player, double enchantingPower, BlockState[] floorBlocks) {
 
         boolean expReqMet      = playerMeetsExpRequirement(bookProperties, player);
-        boolean shelvesReqMet  = playerMeetsBookshelfRequirement(bookProperties, enchantingPower);
+        boolean powerReqMet    = playerMeetsEnchantingPowerRequirement(bookProperties, enchantingPower);
         boolean floorReqMet    = playerMeetsFloorRequirement(bookProperties, floorBlocks);
 
-        return expReqMet && shelvesReqMet && floorReqMet;
+        return expReqMet && powerReqMet && floorReqMet;
     }
 
     @Nullable

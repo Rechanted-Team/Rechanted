@@ -365,11 +365,11 @@ public class RechantedTablePoolDisplayScreen extends AbstractContainerScreen<Rec
         Component requirementsTitle = Component.translatable("tooltip.rechanted.enchantment_table.requirements").append(": ").withStyle(MID_GRAY_COLOR_STYLE);
         tooltipLines.add(requirementsTitle);
 
-        // Bookshelf count requirement. Green color if requirement met.
-        String bookshelfCount = String.valueOf(properties.requiredBookShelves);
-        String bookshelvesName = Component.translatable("tooltip.rechanted.enchantment_table.bookshelves").getString();
-        Component fullBookRequirementColored = Component.literal(bookshelfCount + " " + bookshelvesName).withStyle(currentBookStyle);
-        tooltipLines.add(grayHyphen.copy().append(fullBookRequirementColored));
+        // Required enchanting power.
+        String requiredPower = String.valueOf(properties.requiredBookShelves);
+        String enchantingPowerName = Component.translatable("tooltip.rechanted.enchantment_table.bookshelves").getString();
+        Component powerRequirement = Component.literal(requiredPower + " " + enchantingPowerName).withStyle(currentBookStyle);
+        tooltipLines.add(grayHyphen.copy().append(powerRequirement));
 
         // Floor block requirement. Green color if requirement met.
         String floorBlockName = properties.floorBlock.getName().getString();
@@ -383,11 +383,17 @@ public class RechantedTablePoolDisplayScreen extends AbstractContainerScreen<Rec
         Component breakChanceTitle = Component.translatable("tooltip.rechanted.enchantment_table.break_chance").append(":").withStyle(MID_GRAY_COLOR_STYLE);
         tooltipLines.add(breakChanceTitle);
 
-        // Bookshelves break chance
+        // Enchanting-power sources can be consumed, including non-bookshelf blocks.
         if (properties.bookBreakChance > 0.0001f) {
-            String bookBreakChance = String.format("%.1f%%", properties.bookBreakChance * 100f);
-            tooltipLines.add(Component.literal("- " + bookshelvesName + ":"));
-            tooltipLines.add(Component.literal("    - " + bookBreakChance + " " + chancePerBlock).withStyle(PINK_COLOR_STYLE));
+            String sourceBreakChance = String.format("%.1f%%", properties.bookBreakChance * 100f);
+            String powerSourcesName = Component.translatable("tooltip.rechanted.enchantment_table.power_sources").getString();
+            String baseChance = Component.translatable("tooltip.rechanted.enchantment_table.base_chance").getString();
+            tooltipLines.add(Component.literal("- " + powerSourcesName + ":"));
+            tooltipLines.add(Component.literal("    - " + sourceBreakChance + " " + baseChance).withStyle(PINK_COLOR_STYLE));
+            String warning = Component.translatable("tooltip.rechanted.enchantment_table.source_break_warning").getString();
+            for (String line : UtilFunctions.wrapText(warning, 165)) {
+                tooltipLines.add(Component.literal(line.trim()).withStyle(MID_GRAY_COLOR_STYLE));
+            }
         }
 
         // Floor break chance

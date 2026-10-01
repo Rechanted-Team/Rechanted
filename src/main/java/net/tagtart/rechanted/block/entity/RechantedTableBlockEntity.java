@@ -740,7 +740,7 @@ public class RechantedTableBlockEntity extends EnchantingTableBlockEntity implem
 
     private Pair<Double, BlockState[]> getReqBlockStates(BookRarityProperties bookProperties, BlockPos pPos) {
 
-        double enchantingPower = UtilFunctions.getEnchantingPower(level, UtilFunctions.scanAroundBlockForBookshelves(level, pPos));
+        double enchantingPower = UtilFunctions.scanEnchantingPowerSources(level, pPos).totalPower();
         BlockState[] floorStates = UtilFunctions.scanAroundBlockForValidFloors(bookProperties.floorBlock, level, pPos).getA();
         return new Pair<>(enchantingPower, floorStates);
     }
@@ -863,8 +863,8 @@ public class RechantedTableBlockEntity extends EnchantingTableBlockEntity implem
         stopAmbientSound();
     }
 
-    protected boolean bookshelfRequirementsMet (BookRarityProperties bookProperties, double enchantingPower) {
-        return UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, enchantingPower);
+    protected boolean enchantingPowerRequirementMet(BookRarityProperties bookProperties, double enchantingPower) {
+        return UtilFunctions.playerMeetsEnchantingPowerRequirement(bookProperties, enchantingPower);
     }
 
     protected boolean floorRequirementsMet(BookRarityProperties bookProperties, BlockState[] floorStates) {
@@ -872,7 +872,7 @@ public class RechantedTableBlockEntity extends EnchantingTableBlockEntity implem
     }
 
     protected boolean meetsAllChargedEffectRequirements(BookRarityProperties bookProperties, double enchantingPower, BlockState[] floorStates) {
-        return  bookshelfRequirementsMet(bookProperties, enchantingPower) &&
+        return  enchantingPowerRequirementMet(bookProperties, enchantingPower) &&
                 floorRequirementsMet(bookProperties, floorStates);
     }
 

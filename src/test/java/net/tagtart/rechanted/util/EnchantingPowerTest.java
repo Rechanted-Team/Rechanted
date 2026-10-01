@@ -8,10 +8,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.testframework.junit.EphemeralTestServerProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import oshi.util.tuples.Pair;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,16 +28,6 @@ class EnchantingPowerTest {
         // The ephemeral server loads real datapack tags but does not create a world.
         assertNotNull(server.registryAccess());
         Level level = mock(Level.class);
-        BlockPos pos = new BlockPos(0, 100, 0);
-        assertEquals(1.0f, Blocks.BOOKSHELF.defaultBlockState().getEnchantPowerBonus(level, pos));
-        assertEquals(1.0f, Blocks.CHISELED_BOOKSHELF.defaultBlockState().getEnchantPowerBonus(level, pos));
-        assertEquals(0.0f, Blocks.STONE.defaultBlockState().getEnchantPowerBonus(level, pos));
-
-        var sources = new Pair<>(new BlockState[]{Blocks.BOOKSHELF.defaultBlockState(),
-                Blocks.CHISELED_BOOKSHELF.defaultBlockState()}, new BlockPos[]{pos, pos.above()});
-        assertEquals(2.0, UtilFunctions.getEnchantingPower(level, sources));
-
-        // Scan real block states and loaded tags through a controlled level fixture.
         BlockPos table = new BlockPos(10, 100, 10);
         BlockPos shelf = table.offset(-3, 0, -3);
         BlockPos chiseled = table.offset(3, 2, 3);
@@ -41,83 +35,123 @@ class EnchantingPowerTest {
         when(level.getBlockState(shelf)).thenReturn(Blocks.BOOKSHELF.defaultBlockState());
         when(level.getBlockState(chiseled)).thenReturn(Blocks.CHISELED_BOOKSHELF.defaultBlockState());
         when(level.getBlockState(table.above())).thenReturn(Blocks.STONE.defaultBlockState());
-        var scanned = UtilFunctions.scanAroundBlockForBookshelves(level, table);
-        assertArrayEquals(new BlockPos[]{shelf, chiseled}, scanned.getB());
-        assertEquals(2.0, UtilFunctions.getEnchantingPower(level, scanned));
+
+        var sources = UtilFunctions.scanEnchantingPowerSources(level, table);
+        assertEquals(2.0, sources.totalPower());
+        assertEquals(List.of(
+                new EnchantingPowerSources.Provider(shelf, 1.0f),
+                new EnchantingPowerSources.Provider(chiseled, 1.0f)), sources.providers());
     }
 
     @Test
     void scanUsesWorldPositionAndPreservesExistingBounds() {
-        Level level = mock(Level.class);
-        BlockState empty = mock(BlockState.class);
-        Map<BlockPos, BlockState> blocks = new HashMap<>();
-        when(level.getBlockState(any(BlockPos.class))).thenAnswer(call ->
-                blocks.getOrDefault(call.getArgument(0), empty));
-
+        Fixture fixture = new Fixture();
         BlockPos table = new BlockPos(40, 100, -20);
         BlockPos lowerCorner = table.offset(-3, 0, -3);
         BlockPos upperCorner = table.offset(3, 2, 3);
         BlockPos adjacent = table.offset(1, 0, 0);
-        BlockState lowerSource = mock(BlockState.class);
-        BlockState upperSource = mock(BlockState.class);
-        BlockState adjacentSource = mock(BlockState.class);
-        when(lowerSource.getEnchantPowerBonus(level, lowerCorner)).thenReturn(0.5f);
-        when(upperSource.getEnchantPowerBonus(level, upperCorner)).thenReturn(2.5f);
-        when(adjacentSource.getEnchantPowerBonus(level, adjacent)).thenReturn(1.0f);
-        blocks.put(lowerCorner, lowerSource);
-        blocks.put(upperCorner, upperSource);
-        blocks.put(adjacent, adjacentSource);
-        blocks.put(table.offset(4, 0, 0), upperSource);
-        blocks.put(table.below(), upperSource);
-        blocks.put(table.above(3), upperSource);
+        BlockState lowerSource = fixture.addProvider(lowerCorner, 0.5f);
+        BlockState upperSource = fixture.addProvider(upperCorner, 2.5f);
+        BlockState adjacentSource = fixture.addProvider(adjacent, 1.0f);
+        fixture.addProvider(table.offset(4, 0, 0), 1.0f);
+        fixture.addProvider(table.below(), 1.0f);
+        fixture.addProvider(table.above(3), 1.0f);
 
-        var sources = UtilFunctions.scanAroundBlockForBookshelves(level, table);
-        assertArrayEquals(new BlockPos[]{lowerCorner, adjacent, upperCorner}, sources.getB());
-        assertArrayEquals(new BlockState[]{lowerSource, adjacentSource, upperSource}, sources.getA());
-        assertEquals(4.0, UtilFunctions.getEnchantingPower(level, sources));
-        verify(level, never()).getBlockState(table.offset(4, 0, 0));
-        verify(level, never()).getBlockState(table.below());
-        verify(level, never()).getBlockState(table.above(3));
+        var sources = UtilFunctions.scanEnchantingPowerSources(fixture.level, table);
+        assertEquals(List.of(
+                new EnchantingPowerSources.Provider(lowerCorner, 0.5f),
+                new EnchantingPowerSources.Provider(adjacent, 1.0f),
+                new EnchantingPowerSources.Provider(upperCorner, 2.5f)), sources.providers());
+        assertEquals(4.0, sources.totalPower());
+        verify(lowerSource).getEnchantPowerBonus(fixture.level, lowerCorner);
+        verify(upperSource).getEnchantPowerBonus(fixture.level, upperCorner);
+        verify(adjacentSource).getEnchantPowerBonus(fixture.level, adjacent);
+        verify(fixture.level, never()).getBlockState(table.offset(4, 0, 0));
+        verify(fixture.level, never()).getBlockState(table.below());
+        verify(fixture.level, never()).getBlockState(table.above(3));
     }
 
-    @Test
-    void fractionalPowerIsSummedBeforeCheckingRequirement() {
-        Level level = mock(Level.class);
-        BlockState source = mock(BlockState.class);
-        BlockPos first = new BlockPos(1, 0, 0);
-        BlockPos second = new BlockPos(2, 0, 0);
-        when(source.getEnchantPowerBonus(level, first)).thenReturn(0.5f);
-        when(source.getEnchantPowerBonus(level, second)).thenReturn(2.5f);
-        var sources = new Pair<>(new BlockState[]{source, source}, new BlockPos[]{first, second});
+    @ParameterizedTest
+    @CsvSource({"0.5, 2.5, 3", "3.8, 0.2, 4", "2.8, 0.2, 3", "0.9, 0.1, 1"})
+    void fractionalPowerIsSummedBeforeCheckingRequirement(float first, float second, int requirement) {
+        Fixture fixture = new Fixture();
+        fixture.addProvider(new BlockPos(1, 0, 0), first);
+        fixture.addProvider(new BlockPos(2, 0, 0), second);
         BookRarityProperties properties = mock(BookRarityProperties.class);
-        properties.requiredBookShelves = 3;
+        properties.requiredBookShelves = requirement;
 
-        double power = UtilFunctions.getEnchantingPower(level, sources);
-        assertTrue(UtilFunctions.playerMeetsBookshelfRequirement(properties, power));
-        assertFalse(UtilFunctions.playerMeetsBookshelfRequirement(properties, 2.99));
-        assertFalse(UtilFunctions.playerMeetsBookshelfRequirement(properties, 0));
+        var sources = UtilFunctions.scanEnchantingPowerSources(fixture.level, BlockPos.ZERO);
+        assertTrue(UtilFunctions.playerMeetsEnchantingPowerRequirement(properties, sources.totalPower()));
+        assertFalse(UtilFunctions.playerMeetsEnchantingPowerRequirement(properties, requirement - 0.01));
+        assertFalse(UtilFunctions.playerMeetsEnchantingPowerRequirement(properties, 0));
     }
 
     @Test
-    void nonPositiveBlocksAreNotConsumptionCandidates() {
-        Level level = mock(Level.class);
-        BlockState negative = mock(BlockState.class);
-        when(level.getBlockState(any(BlockPos.class))).thenReturn(negative);
-        when(negative.getEnchantPowerBonus(eq(level), any(BlockPos.class))).thenReturn(-1.0f);
-        var sources = UtilFunctions.scanAroundBlockForBookshelves(level, BlockPos.ZERO);
-        assertEquals(0, sources.getA().length);
-        assertEquals(0, sources.getB().length);
-        assertEquals(0.0, UtilFunctions.getEnchantingPower(level, sources));
+    void toleranceDoesNotHideARealPowerShortfall() {
+        assertTrue(EnchantingPowerSources.meetsRequirement(4.0, 4));
+        assertFalse(EnchantingPowerSources.meetsRequirement(4.0 - 2 * Math.ulp(4.0f), 4));
+        assertFalse(EnchantingPowerSources.meetsRequirement(3.99, 4));
+        assertTrue(EnchantingPowerSources.meetsRequirement(0, 0));
+    }
+
+    @ParameterizedTest
+    @ValueSource(floats = {0, -1, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY})
+    void invalidPowerIsNotCountedOrConsumed(float power) {
+        Fixture fixture = new Fixture();
+        fixture.addProvider(new BlockPos(1, 0, 0), power);
+        var sources = UtilFunctions.scanEnchantingPowerSources(fixture.level, BlockPos.ZERO);
+        assertTrue(sources.providers().isEmpty());
+        assertEquals(0.0, sources.totalPower());
     }
 
     @Test
-    void powerIsReevaluatedWhenProviderContentsChange() {
-        Level level = mock(Level.class);
-        BlockState source = mock(BlockState.class);
+    void eachScanReevaluatesProviderContents() {
+        Fixture fixture = new Fixture();
         BlockPos pos = new BlockPos(1, 0, 0);
-        when(source.getEnchantPowerBonus(level, pos)).thenReturn(1.0f, 0.0f);
-        var sources = new Pair<>(new BlockState[]{source}, new BlockPos[]{pos});
-        assertEquals(1.0, UtilFunctions.getEnchantingPower(level, sources));
-        assertEquals(0.0, UtilFunctions.getEnchantingPower(level, sources));
+        BlockState source = fixture.addProvider(pos, 1.0f);
+        when(source.getEnchantPowerBonus(fixture.level, pos)).thenReturn(1.0f, 0.0f);
+
+        var before = UtilFunctions.scanEnchantingPowerSources(fixture.level, BlockPos.ZERO);
+        var after = UtilFunctions.scanEnchantingPowerSources(fixture.level, BlockPos.ZERO);
+        assertEquals(1.0, before.totalPower());
+        assertEquals(0.0, after.totalPower());
+        assertTrue(after.providers().isEmpty());
+        verify(source, times(2)).getEnchantPowerBonus(fixture.level, pos);
+    }
+
+    @Test
+    void destroyedSourcesDisappearFromTheNextScan() {
+        Fixture fixture = new Fixture();
+        fixture.addProvider(new BlockPos(1, 0, 0), 1.0f);
+        fixture.addProvider(new BlockPos(2, 0, 0), 1.0f);
+        fixture.addProvider(new BlockPos(3, 0, 0), 1.0f);
+        when(fixture.level.destroyBlock(any(BlockPos.class), eq(false))).thenAnswer(call ->
+                fixture.blocks.remove(call.getArgument(0)) != null);
+
+        var before = UtilFunctions.scanEnchantingPowerSources(fixture.level, BlockPos.ZERO);
+        before.consume(fixture.level, 2, 1.0, new Random(7));
+        var after = UtilFunctions.scanEnchantingPowerSources(fixture.level, BlockPos.ZERO);
+        assertEquals(3.0, before.totalPower());
+        assertEquals(1.0, after.totalPower());
+        assertEquals(1, after.providers().size());
+        verify(fixture.level, times(2)).destroyBlock(any(BlockPos.class), eq(false));
+    }
+
+    private static class Fixture {
+        final Level level = mock(Level.class);
+        final Map<BlockPos, BlockState> blocks = new HashMap<>();
+
+        Fixture() {
+            BlockState empty = mock(BlockState.class);
+            when(level.getBlockState(any(BlockPos.class))).thenAnswer(call ->
+                    blocks.getOrDefault(call.getArgument(0), empty));
+        }
+
+        BlockState addProvider(BlockPos pos, float power) {
+            BlockState state = mock(BlockState.class);
+            when(state.getEnchantPowerBonus(level, pos)).thenReturn(power);
+            blocks.put(pos, state);
+            return state;
+        }
     }
 }

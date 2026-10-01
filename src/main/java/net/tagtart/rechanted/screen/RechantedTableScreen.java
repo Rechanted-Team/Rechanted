@@ -257,7 +257,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
                     }
 
                     if (!floorRequirementsMet(properties, cachedFloorBlocksInRange)
-                            || !bookshelfRequirementsMet(properties, cachedEnchantingPower)
+                            || !enchantingPowerRequirementMet(properties, cachedEnchantingPower)
                             || !lapisRequirementsMet(properties)) {
                         Minecraft.getInstance().player.playSound(SoundEvents.LODESTONE_COMPASS_LOCK, 0.7F, 1.0f);
                         break;
@@ -358,11 +358,11 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         tooltipLines.add(requirementsTitle);
 
         // Enchanting power requirement. Green color if requirement met.
-        String bookshelfCount = String.valueOf(properties.requiredBookShelves);
-        String bookshelvesName = Component.translatable("tooltip.rechanted.enchantment_table.bookshelves").getString();
-        ChatFormatting bookReqMetColor = bookshelfRequirementsMet(properties, cachedEnchantingPower) ? ChatFormatting.GREEN : ChatFormatting.RED;
-        Component fullBookRequirementColored = Component.literal(bookshelfCount + " " + bookshelvesName).withStyle(bookReqMetColor);
-        tooltipLines.add(grayHyphen.copy().append(fullBookRequirementColored));
+        String requiredPower = String.valueOf(properties.requiredBookShelves);
+        String enchantingPowerName = Component.translatable("tooltip.rechanted.enchantment_table.bookshelves").getString();
+        ChatFormatting powerRequirementColor = enchantingPowerRequirementMet(properties, cachedEnchantingPower) ? ChatFormatting.GREEN : ChatFormatting.RED;
+        Component powerRequirement = Component.literal(requiredPower + " " + enchantingPowerName).withStyle(powerRequirementColor);
+        tooltipLines.add(grayHyphen.copy().append(powerRequirement));
 
         // Floor block requirement. Green color if requirement met.
         String floorBlockName = properties.floorBlock.getName().getString();
@@ -377,11 +377,17 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         Component breakChanceTitle = Component.translatable("tooltip.rechanted.enchantment_table.break_chance").append(":").withStyle(MID_GRAY_COLOR_STYLE);
         tooltipLines.add(breakChanceTitle);
 
-        // Bookshelves break chance
+        // Enchanting-power sources can be consumed, including non-bookshelf blocks.
         if (properties.bookBreakChance > 0.0001f) {
-            String bookBreakChance = String.format("%.1f%%", properties.bookBreakChance * 100f);
-            tooltipLines.add(Component.literal("- " + bookshelvesName + ":"));
-            tooltipLines.add(Component.literal("    - " + bookBreakChance + " " + chancePerBlock).withStyle(PINK_COLOR_STYLE));
+            String sourceBreakChance = String.format("%.1f%%", properties.bookBreakChance * 100f);
+            String powerSourcesName = Component.translatable("tooltip.rechanted.enchantment_table.power_sources").getString();
+            String baseChance = Component.translatable("tooltip.rechanted.enchantment_table.base_chance").getString();
+            tooltipLines.add(Component.literal("- " + powerSourcesName + ":"));
+            tooltipLines.add(Component.literal("    - " + sourceBreakChance + " " + baseChance).withStyle(PINK_COLOR_STYLE));
+            String warning = Component.translatable("tooltip.rechanted.enchantment_table.source_break_warning").getString();
+            for (String line : UtilFunctions.wrapText(warning, 165)) {
+                tooltipLines.add(Component.literal(line.trim()).withStyle(MID_GRAY_COLOR_STYLE));
+            }
         }
 
         // Floor break chance
@@ -419,7 +425,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         Level level = playerInventory.player.level();
         BlockPos enchantTablePos = menu.blockEntity.getBlockPos();
 
-        double enchantingPower = UtilFunctions.getEnchantingPower(level, UtilFunctions.scanAroundBlockForBookshelves(level, enchantTablePos));
+        double enchantingPower = UtilFunctions.scanEnchantingPowerSources(level, enchantTablePos).totalPower();
         BlockState[] floorStates = UtilFunctions.scanAroundBlockForValidFloors(bookProperties.floorBlock, level, enchantTablePos).getA();
         return new Pair<>(enchantingPower, floorStates);
     }
@@ -429,8 +435,8 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         return UtilFunctions.playerMeetsExpRequirement(bookProperties, playerInventory.player);
     }
 
-    protected boolean bookshelfRequirementsMet (BookRarityProperties bookProperties, double enchantingPower) {
-        return UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, enchantingPower);
+    protected boolean enchantingPowerRequirementMet(BookRarityProperties bookProperties, double enchantingPower) {
+        return UtilFunctions.playerMeetsEnchantingPowerRequirement(bookProperties, enchantingPower);
     }
 
     protected boolean floorRequirementsMet(BookRarityProperties bookProperties, BlockState[] floorStates) {
@@ -442,7 +448,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
     }
 
     protected boolean playerMeetsAllEnchantRequirements(BookRarityProperties bookProperties, double enchantingPower, BlockState[] floorStates) {
-        return  bookshelfRequirementsMet(bookProperties, enchantingPower) &&
+        return  enchantingPowerRequirementMet(bookProperties, enchantingPower) &&
                 expRequirementMet(bookProperties) &&
                 floorRequirementsMet(bookProperties, floorStates) &&
                 lapisRequirementsMet(bookProperties);

@@ -31,6 +31,7 @@ public class BookRarityProperties {
     public int forcedFloorBreaks;
     public double bookBreakChance;
     public double floorBreakChance;
+    // Retains the legacy config name; the value now measures enchanting power.
     public int requiredBookShelves;
     public int requiredLapis;
     public Block floorBlock;
