@@ -84,7 +84,7 @@ public record PlayerPurchaseEnchantedBookC2SPayload(int bookPropertiesIndex, Blo
             var floorBlocks = UtilFunctions.scanAroundBlockForValidFloors(bookProperties.floorBlock, level, payload.enchantTablePos);
 
             boolean meetsEXPRequirement = UtilFunctions.playerMeetsExpRequirement(bookProperties, player);
-            boolean meetsBookshelfRequirement = UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, bookshelves.getA());
+            boolean meetsBookshelfRequirement = UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, UtilFunctions.getEnchantingPower(level, bookshelves));
             boolean meetsFloorBlocksRequirement = UtilFunctions.playerMeetsFloorRequirement(bookProperties, floorBlocks.getA());
             boolean meetsLapisRequirement = UtilFunctions.playerMeetsLapisRequirement(bookProperties, enchTableEntity.getItemHandlerLapisStack());
             boolean validEntityState = enchTableEntity.tableState == RechantedTableBlockEntity.CustomRechantedTableState.Normal;
@@ -253,7 +253,7 @@ private static void sendEnchantResultPlayerMessage(Player player, PurchaseBookRe
             player.sendSystemMessage(Component.literal("Server desync error: Player does not have enough XP!"));
             break;
         case INSUFFICIENT_BOOKS:
-            player.sendSystemMessage(Component.literal("Server desync error: Insufficient book count around table!"));
+            player.sendSystemMessage(Component.literal("Server desync error: Insufficient enchanting power around table!"));
             break;
         case INSUFFICIENT_FLOOR:
             player.sendSystemMessage(Component.literal("Server desync error: Insufficient 3x3 floor around table!"));

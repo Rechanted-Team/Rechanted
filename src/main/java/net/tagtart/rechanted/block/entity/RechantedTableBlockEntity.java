@@ -108,7 +108,7 @@ public class RechantedTableBlockEntity extends EnchantingTableBlockEntity implem
         }
     };
     //private LazyOptional<IItemHandler> lazyItemHandler = LazyOptional.empty();
-    private BlockState[] cachedBookshelvesInRange;
+    private double cachedEnchantingPower;
     private BlockState[] cachedFloorBlocksInRange;
 
     private long totalTicks = 0;
@@ -734,15 +734,15 @@ public class RechantedTableBlockEntity extends EnchantingTableBlockEntity implem
 
     public void refreshCachedBlockStates(BookRarityProperties bookProperties, BlockPos pPos) {
         var reqBlockStates = getReqBlockStates(bookProperties, pPos);
-        cachedBookshelvesInRange = reqBlockStates.getA();
+        cachedEnchantingPower = reqBlockStates.getA();
         cachedFloorBlocksInRange = reqBlockStates.getB();
     }
 
-    private Pair<BlockState[], BlockState[]> getReqBlockStates(BookRarityProperties bookProperties, BlockPos pPos) {
+    private Pair<Double, BlockState[]> getReqBlockStates(BookRarityProperties bookProperties, BlockPos pPos) {
 
-        BlockState[] shelfStates = UtilFunctions.scanAroundBlockForBookshelves(level, pPos).getA();
+        double enchantingPower = UtilFunctions.getEnchantingPower(level, UtilFunctions.scanAroundBlockForBookshelves(level, pPos));
         BlockState[] floorStates = UtilFunctions.scanAroundBlockForValidFloors(bookProperties.floorBlock, level, pPos).getA();
-        return new Pair<>(shelfStates, floorStates);
+        return new Pair<>(enchantingPower, floorStates);
     }
 
     // Copy-pasted from enchantment table entity, but changing the "random" calls to prevent an IllegalStateException that can
@@ -815,7 +815,7 @@ public class RechantedTableBlockEntity extends EnchantingTableBlockEntity implem
         for (int i = 1; i < 6; ++i) { // elements 1 - 5 to ignore dusty tier
             BookRarityProperties properties = BookRarityProperties.getAllProperties()[i];
             refreshCachedBlockStates(properties, pPos);
-            if (meetsAllChargedEffectRequirements(properties, cachedBookshelvesInRange, cachedFloorBlocksInRange)) {
+            if (meetsAllChargedEffectRequirements(properties, cachedEnchantingPower, cachedFloorBlocksInRange)) {
                 if (level instanceof ServerLevel serverLevel) {
                     AdvancementHelper.awardPowerUpEnchantTableAdvancementNearPos(serverLevel, pPos);
                 }
@@ -863,16 +863,16 @@ public class RechantedTableBlockEntity extends EnchantingTableBlockEntity implem
         stopAmbientSound();
     }
 
-    protected boolean bookshelfRequirementsMet (BookRarityProperties bookProperties, BlockState[] shelfStates) {
-        return UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, shelfStates);
+    protected boolean bookshelfRequirementsMet (BookRarityProperties bookProperties, double enchantingPower) {
+        return UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, enchantingPower);
     }
 
     protected boolean floorRequirementsMet(BookRarityProperties bookProperties, BlockState[] floorStates) {
         return UtilFunctions.playerMeetsFloorRequirement(bookProperties, floorStates);
     }
 
-    protected boolean meetsAllChargedEffectRequirements(BookRarityProperties bookProperties, BlockState[] shelfStates, BlockState[] floorStates) {
-        return  bookshelfRequirementsMet(bookProperties, shelfStates) &&
+    protected boolean meetsAllChargedEffectRequirements(BookRarityProperties bookProperties, double enchantingPower, BlockState[] floorStates) {
+        return  bookshelfRequirementsMet(bookProperties, enchantingPower) &&
                 floorRequirementsMet(bookProperties, floorStates);
     }
 

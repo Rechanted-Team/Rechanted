@@ -320,11 +320,19 @@ public class UtilFunctions {
         return getPlayerExperiencePoints(player) >= bookProperties.requiredExp;
     }
 
-    // Note that is checks if the blocks match the required type for safety.
-    // Recommended to pass in smaller (possibly already filtered) arrays for performance.
-    public static boolean playerMeetsBookshelfRequirement(BookRarityProperties bookProperties, BlockState[] states) {
-        int shelvesPresent = Arrays.stream(states).filter(blockState -> blockState.is(Blocks.BOOKSHELF)).toArray().length;
-        return shelvesPresent >= bookProperties.requiredBookShelves;
+    public static boolean playerMeetsBookshelfRequirement(BookRarityProperties bookProperties, double enchantingPower) {
+        return enchantingPower >= bookProperties.requiredBookShelves;
+    }
+
+    public static double getEnchantingPower(Level level, Pair<BlockState[], BlockPos[]> sources) {
+        double enchantingPower = 0;
+        for (int i = 0; i < sources.getA().length; ++i) {
+            float power = sources.getA()[i].getEnchantPowerBonus(level, sources.getB()[i]);
+            if (power > 0) {
+                enchantingPower += power;
+            }
+        }
+        return enchantingPower;
     }
 
     // Note that is checks if the blocks match the required type for safety.
@@ -350,15 +358,27 @@ public class UtilFunctions {
         Vec3i bookshelfCheckLowerLeftOffset = new Vec3i(3, 0, 3);
         Vec3i bookshelfCheckUpperRightOffset = new Vec3i(3, 2, 3);
 
-        var bookBlockInfo = UtilFunctions.getAllBlockInfoAroundBlock(
+        var blockInfo = UtilFunctions.getAllBlockInfoAroundBlock(
                 level,
                 blockPos,
                 bookshelfCheckLowerLeftOffset,
                 bookshelfCheckUpperRightOffset,
-                Blocks.BOOKSHELF
+                null
         );
 
-        return bookBlockInfo;
+        // Keep states and positions aligned, including only positive power providers.
+        // The positions also determine which blocks can be consumed during a purchase.
+        ArrayList<BlockState> states = new ArrayList<>();
+        ArrayList<BlockPos> positions = new ArrayList<>();
+        for (int i = 0; i < blockInfo.getA().length; ++i) {
+            BlockState state = blockInfo.getA()[i];
+            BlockPos pos = blockInfo.getB()[i];
+            if (state.getEnchantPowerBonus(level, pos) > 0) {
+                states.add(state);
+                positions.add(pos);
+            }
+        }
+        return new Pair<>(states.toArray(BlockState[]::new), positions.toArray(BlockPos[]::new));
     }
 
     public static Pair<BlockState[], BlockPos[]> scanAroundBlockForValidFloors(Block validBlock, Level level, BlockPos blockPos){
@@ -377,10 +397,10 @@ public class UtilFunctions {
         return floorBlockInfo;
     }
 
-    public static boolean playerMeetsAllEnchantRequirements(BookRarityProperties bookProperties, Player player, BlockState[] bookshelves, BlockState[] floorBlocks) {
+    public static boolean playerMeetsAllEnchantRequirements(BookRarityProperties bookProperties, Player player, double enchantingPower, BlockState[] floorBlocks) {
 
         boolean expReqMet      = playerMeetsExpRequirement(bookProperties, player);
-        boolean shelvesReqMet  = playerMeetsBookshelfRequirement(bookProperties, bookshelves);
+        boolean shelvesReqMet  = playerMeetsBookshelfRequirement(bookProperties, enchantingPower);
         boolean floorReqMet    = playerMeetsFloorRequirement(bookProperties, floorBlocks);
 
         return expReqMet && shelvesReqMet && floorReqMet;

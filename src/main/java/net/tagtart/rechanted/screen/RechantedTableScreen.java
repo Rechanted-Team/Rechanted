@@ -69,7 +69,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
 
     public Inventory playerInventory;
 
-    private BlockState[] cachedBookshelvesInRange;
+    private double cachedEnchantingPower;
     private BlockState[] cachedFloorBlocksInRange;
 
     private float timeElapsed = 0.0f;
@@ -94,7 +94,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
     protected void init() {
         super.init();
 
-        this.cachedBookshelvesInRange = new BlockState[0];
+        this.cachedEnchantingPower = 0;
         this.cachedFloorBlocksInRange = new BlockState[0];
 
         this.inventoryLabelY = 10000;
@@ -166,7 +166,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
             for (int i = 1; i < 6; ++i) {
                 BookRarityProperties properties = BookRarityProperties.getAllProperties()[i];
                 refreshCachedBlockStates(properties);
-                if (playerMeetsAllEnchantRequirements(properties, cachedBookshelvesInRange, cachedFloorBlocksInRange)) {
+                if (playerMeetsAllEnchantRequirements(properties, cachedEnchantingPower, cachedFloorBlocksInRange)) {
                     currentIndexRequirementsMet = i;
                     break;
                 }
@@ -257,7 +257,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
                     }
 
                     if (!floorRequirementsMet(properties, cachedFloorBlocksInRange)
-                            || !bookshelfRequirementsMet(properties, cachedBookshelvesInRange)
+                            || !bookshelfRequirementsMet(properties, cachedEnchantingPower)
                             || !lapisRequirementsMet(properties)) {
                         Minecraft.getInstance().player.playSound(SoundEvents.LODESTONE_COMPASS_LOCK, 0.7F, 1.0f);
                         break;
@@ -357,10 +357,10 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         Component requirementsTitle = Component.translatable("tooltip.rechanted.enchantment_table.requirements").append(": ").withStyle(MID_GRAY_COLOR_STYLE);
         tooltipLines.add(requirementsTitle);
 
-        // Bookshelf count requirement. Green color if requirement met.
+        // Enchanting power requirement. Green color if requirement met.
         String bookshelfCount = String.valueOf(properties.requiredBookShelves);
         String bookshelvesName = Component.translatable("tooltip.rechanted.enchantment_table.bookshelves").getString();
-        ChatFormatting bookReqMetColor = bookshelfRequirementsMet(properties, cachedBookshelvesInRange) ? ChatFormatting.GREEN : ChatFormatting.RED;
+        ChatFormatting bookReqMetColor = bookshelfRequirementsMet(properties, cachedEnchantingPower) ? ChatFormatting.GREEN : ChatFormatting.RED;
         Component fullBookRequirementColored = Component.literal(bookshelfCount + " " + bookshelvesName).withStyle(bookReqMetColor);
         tooltipLines.add(grayHyphen.copy().append(fullBookRequirementColored));
 
@@ -393,7 +393,7 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         }
 
         // Shows left-click prompt if met, otherwise shows warning that requirements not met.
-        if (playerMeetsAllEnchantRequirements(properties, cachedBookshelvesInRange, cachedFloorBlocksInRange)) {
+        if (playerMeetsAllEnchantRequirements(properties, cachedEnchantingPower, cachedFloorBlocksInRange)) {
             Component leftClickPrompt = Component.translatable("tooltip.rechanted.enchantment_table.left_click").withStyle(properties.colorAsStyle());
             tooltipLines.add(whiteArrow.copy().append(leftClickPrompt));
         }
@@ -411,17 +411,17 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
 
     public void refreshCachedBlockStates(BookRarityProperties bookProperties) {
         var reqBlockStates = getReqBlockStates(bookProperties);
-        cachedBookshelvesInRange = reqBlockStates.getA();
+        cachedEnchantingPower = reqBlockStates.getA();
         cachedFloorBlocksInRange = reqBlockStates.getB();
     }
 
-    private Pair<BlockState[], BlockState[]> getReqBlockStates(BookRarityProperties bookProperties) {
+    private Pair<Double, BlockState[]> getReqBlockStates(BookRarityProperties bookProperties) {
         Level level = playerInventory.player.level();
         BlockPos enchantTablePos = menu.blockEntity.getBlockPos();
 
-        BlockState[] shelfStates = UtilFunctions.scanAroundBlockForBookshelves(level, enchantTablePos).getA();
+        double enchantingPower = UtilFunctions.getEnchantingPower(level, UtilFunctions.scanAroundBlockForBookshelves(level, enchantTablePos));
         BlockState[] floorStates = UtilFunctions.scanAroundBlockForValidFloors(bookProperties.floorBlock, level, enchantTablePos).getA();
-        return new Pair<>(shelfStates, floorStates);
+        return new Pair<>(enchantingPower, floorStates);
     }
 
     // These extra requirement checks are kinda pointless but uh yeah whatever
@@ -429,8 +429,8 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         return UtilFunctions.playerMeetsExpRequirement(bookProperties, playerInventory.player);
     }
 
-    protected boolean bookshelfRequirementsMet (BookRarityProperties bookProperties, BlockState[] shelfStates) {
-        return UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, shelfStates);
+    protected boolean bookshelfRequirementsMet (BookRarityProperties bookProperties, double enchantingPower) {
+        return UtilFunctions.playerMeetsBookshelfRequirement(bookProperties, enchantingPower);
     }
 
     protected boolean floorRequirementsMet(BookRarityProperties bookProperties, BlockState[] floorStates) {
@@ -441,8 +441,8 @@ public class RechantedTableScreen extends AbstractContainerScreen<RechantedTable
         return UtilFunctions.playerMeetsLapisRequirement(bookProperties, menu.getLapisSlotStack());
     }
 
-    protected boolean playerMeetsAllEnchantRequirements(BookRarityProperties bookProperties, BlockState[] shelfStates, BlockState[] floorStates) {
-        return  bookshelfRequirementsMet(bookProperties, shelfStates) &&
+    protected boolean playerMeetsAllEnchantRequirements(BookRarityProperties bookProperties, double enchantingPower, BlockState[] floorStates) {
+        return  bookshelfRequirementsMet(bookProperties, enchantingPower) &&
                 expRequirementMet(bookProperties) &&
                 floorRequirementsMet(bookProperties, floorStates) &&
                 lapisRequirementsMet(bookProperties);
