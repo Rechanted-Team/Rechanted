@@ -1,0 +1,44 @@
+{
+  "parent": "minecraft:item/generated",
+  "overrides": [
+    {
+      "model": "rechanted:item/dusty",
+      "predicate": {
+        "rechanted:book_rarity": 0.0
+      }
+    },
+    {
+      "model": "rechanted:item/simple",
+      "predicate": {
+        "rechanted:book_rarity": 1.0
+      }
+    },
+    {
+      "model": "rechanted:item/unique",
+      "predicate": {
+        "rechanted:book_rarity": 2.0
+      }
+    },
+    {
+      "model": "rechanted:item/elite",
+      "predicate": {
+        "rechanted:book_rarity": 3.0
+      }
+    },
+    {
+      "model": "rechanted:item/ultimate",
+      "predicate": {
+        "rechanted:book_rarity": 4.0
+      }
+    },
+    {
+      "model": "rechanted:item/legendary",
+      "predicate": {
+        "rechanted:book_rarity": 5.0
+      }
+    }
+  ],
+  "textures": {
+    "layer0": "rechanted:item/dusty"
+  }
+}

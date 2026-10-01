@@ -86,6 +86,12 @@ neoForge {
             programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
         }
 
+        // Refresh item models without changing server-side recipes or loot data.
+        clientData {
+            data()
+            programArguments.addAll '--mod', project.mod_id, '--client', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
         // applies to all the run configs above
         configureEach {
             // Recommended logging data for a userdev environment
@@ -164,6 +170,10 @@ dependencies {
 
 tasks.named('test', Test).configure {
     useJUnitPlatform()
+    def runtimeJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
+    dependsOn tasks.named('jar')
+    inputs.file(runtimeJar).withPropertyName('runtimeJar').withPathSensitivity(PathSensitivity.NONE)
+    systemProperty 'rechanted.testJar', runtimeJar.get().asFile.absolutePath
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

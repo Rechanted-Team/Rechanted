@@ -44,3 +44,15 @@ Extra sources beyond the requirement do not add destruction rolls. Requirements,
 XP, lapis, floor costs, and placement bounds otherwise remain unchanged.
 
 Run `./gradlew build` to compile the mod and run the enchanting-power tests.
+
+## Generated item models
+
+Generated client resources are tracked in `src/generated/resources` so a clean
+checkout builds a complete mod without running data generation first. After
+changing an item model generator, run `./gradlew runClientData` to refresh client
+resources, then commit the changed JSON files. This headless data-generation task
+does not open a game client or change server-side recipes and loot data.
+
+The build tests inspect the runtime JAR for registered item models, book-rarity
+overrides, and their local texture references. Missing models fail the build
+instead of being discovered only after deployment.

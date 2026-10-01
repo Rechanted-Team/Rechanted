@@ -24,7 +24,7 @@ runs
 run-data
 .vscode
 
-# mod
-generated
+# Generated resources ship with the mod; only the datagen cache is local.
+src/generated/resources/.cache/
 
 repo
