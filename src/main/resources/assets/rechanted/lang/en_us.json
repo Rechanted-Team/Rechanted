@@ -479,6 +479,8 @@
   "config.rechanted.fortune_nerf.tooltip": "Control how Fortune enchantment affects block drops",
   "config.rechanted.grindstone_result_item.title": "Grindstone Result Item",
   "config.rechanted.grindstone_result_item.tooltip": "Item received when grinding any enchanted book",
+  "config.rechanted.valid_enchanting_power_blocks.title": "Valid Bookshelf Blocks",
+  "config.rechanted.valid_enchanting_power_blocks.tooltip": "List of non-floor blocks that add enchanting power",
 
   "config.rechanted.announce_enchantments.title": "Announced Enchantments",
   "config.rechanted.announce_enchantments.tooltip": "Enchantments that will be announced when found in loot",

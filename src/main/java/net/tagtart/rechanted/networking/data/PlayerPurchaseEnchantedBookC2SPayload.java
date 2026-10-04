@@ -21,7 +21,12 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.ChiseledBookShelfBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.tagtart.rechanted.Rechanted;
 import net.tagtart.rechanted.block.entity.RechantedTableBlockEntity;
@@ -109,7 +114,9 @@ public record PlayerPurchaseEnchantedBookC2SPayload(int bookPropertiesIndex, Blo
 
                 // Destroy block at that position if rolls to do it. Also don't check more than
                 // the number of shelves that are actually required just in case they all roll to break somehow.
-                // Check via random indices as well.
+                // -----
+                // Also note that this procedure doesn't check the block type; we assume the scan earlier
+                // already filtered the list to only have valid config'd blocks!
                 ArrayList<Integer> randomIndices = new ArrayList<>();
                 for (int i = 0; i < bookshelves.getB().length; ++i) {
                     randomIndices.add(i);
@@ -117,9 +124,22 @@ public record PlayerPurchaseEnchantedBookC2SPayload(int bookPropertiesIndex, Blo
                 Collections.shuffle(randomIndices);
                 for (int i = 0; i < bookshelves.getB().length && i < bookProperties.requiredBookShelves; ++i) {
                     int bookIndex = randomIndices.get(i);
+
+                    BlockState state = bookshelves.getA()[bookIndex];
                     BlockPos position = bookshelves.getB()[bookIndex];
-                    if (random.nextFloat() < bookProperties.bookBreakChance)
+
+                    if (random.nextFloat() < bookProperties.bookBreakChance) {
+
+                        // Edge case: if chiseled bookshelf, remove 3 books from it before destroying it
+                        // (it normally drops all items in its inventory by default)
+                        if (state.is(Blocks.CHISELED_BOOKSHELF)) {
+                            ChiseledBookShelfBlockEntity chBkEntity = (ChiseledBookShelfBlockEntity) level.getBlockEntity(position);
+                            if (chBkEntity != null)
+                                UtilFunctions.scanBlockInventoryForBooks(chBkEntity, true);
+                        }
+
                         level.destroyBlock(position, false);
+                    }
                 }
 
                 // Do same for floor blocks, with extra logic prevent the block under

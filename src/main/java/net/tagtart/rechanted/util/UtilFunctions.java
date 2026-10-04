@@ -35,8 +35,11 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.ChiseledBookShelfBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.tagtart.rechanted.config.RechantedCommonConfigs;
 import net.tagtart.rechanted.event.ParticleEmitter;
@@ -320,16 +323,88 @@ public class UtilFunctions {
         return getPlayerExperiencePoints(player) >= bookProperties.requiredExp;
     }
 
-    // Note that is checks if the blocks match the required type for safety.
-    // Recommended to pass in smaller (possibly already filtered) arrays for performance.
+    public static boolean scanBlockInventoryForBooks(ChiseledBookShelfBlockEntity chBkEntity, boolean removeBooks) {
+
+        ArrayList<ItemStack> bookStacks = new ArrayList<>();
+        int books = 0;
+        for (int slot = 0; slot < chBkEntity.getContainerSize(); slot++) {
+            ItemStack stack = chBkEntity.getItem(slot);
+
+            if (stack.is(Items.BOOK)) {
+                bookStacks.add(stack);
+                books += stack.getCount();
+
+                // This is just for chiseled shelves so just hardcoding 3 books; same amt as normal bookshelf
+                if (books >= 3) {
+                    if (removeBooks && !chBkEntity.getLevel().isClientSide) {
+                        int remaining = books;
+                        for (ItemStack itemStack : bookStacks) {
+                            int toRemove = Math.min(remaining, itemStack.getCount());
+                            itemStack.setCount(itemStack.getCount() - toRemove);
+
+                            remaining -= toRemove;
+                        }
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+
+    public static Pair<BlockState[], BlockPos[]> getValidEnchantingPowerBlocksFromStates(Level level, BlockState[] states, BlockPos[] positions) {
+
+        // Should probably cache this list of blocks somewhere but this should be fine.
+        List<? extends String> configBlockNames = RechantedCommonConfigs.VALID_ENCHANTING_POWER_BLOCKS.get();
+        ArrayList<Block> validConfigBlocks = new ArrayList<>();
+        for (String blockName : configBlockNames) {
+
+            ResourceLocation blockLoc = ResourceLocation.parse(blockName);
+            Block block = BuiltInRegistries.BLOCK.get(blockLoc);
+
+            validConfigBlocks.add(block);
+        }
+
+        ArrayList<BlockState> validBlocks = new ArrayList<>();
+        ArrayList<BlockPos> validBlockPos = new ArrayList<>();
+        for (int i = 0; i < states.length; ++i) {
+
+            BlockState enchantingBlock = states[i];
+            BlockPos enchantingBlockPos = positions[i];
+
+            Block block = enchantingBlock.getBlock();
+            if (validConfigBlocks.contains(block)) {
+
+                // Chiseled bookshelf edge case; must have 3 books in its inventory to work!
+                if (enchantingBlock.is(Blocks.CHISELED_BOOKSHELF)) {
+
+                    ChiseledBookShelfBlockEntity chiseledBookShelfBlockEntity = (ChiseledBookShelfBlockEntity)level.getBlockEntity(enchantingBlockPos);
+                    if (chiseledBookShelfBlockEntity != null && scanBlockInventoryForBooks(chiseledBookShelfBlockEntity, false)) {
+                        validBlocks.add(enchantingBlock);
+                        validBlockPos.add(enchantingBlockPos);
+                    }
+
+                }
+                else {
+                    validBlocks.add(enchantingBlock);
+                    validBlockPos.add(enchantingBlockPos);
+                }
+            }
+        }
+
+        return new Pair<>(validBlocks.toArray(new BlockState[0]), validBlockPos.toArray(new BlockPos[0]));
+    }
+
     public static boolean playerMeetsBookshelfRequirement(BookRarityProperties bookProperties, BlockState[] states) {
-        int shelvesPresent = Arrays.stream(states).filter(blockState -> blockState.is(Blocks.BOOKSHELF)).toArray().length;
+        int shelvesPresent = states.length;
         return shelvesPresent >= bookProperties.requiredBookShelves;
     }
 
-    // Note that is checks if the blocks match the required type for safety.
-    // Recommended to pass in smaller (possibly already filtered) arrays for performance.
     public static boolean playerMeetsFloorRequirement(BookRarityProperties bookProperties, BlockState[] states) {
+
         // Air should never count as a valid activation floor, even if configured accidentally.
         if (bookProperties.floorBlock == Blocks.AIR) {
             return false;
@@ -350,15 +425,16 @@ public class UtilFunctions {
         Vec3i bookshelfCheckLowerLeftOffset = new Vec3i(3, 0, 3);
         Vec3i bookshelfCheckUpperRightOffset = new Vec3i(3, 2, 3);
 
+        // Just get all blocks and compare manually with config after
         var bookBlockInfo = UtilFunctions.getAllBlockInfoAroundBlock(
                 level,
                 blockPos,
                 bookshelfCheckLowerLeftOffset,
                 bookshelfCheckUpperRightOffset,
-                Blocks.BOOKSHELF
+                null
         );
 
-        return bookBlockInfo;
+        return getValidEnchantingPowerBlocksFromStates(level, bookBlockInfo.getA(), bookBlockInfo.getB());
     }
 
     public static Pair<BlockState[], BlockPos[]> scanAroundBlockForValidFloors(Block validBlock, Level level, BlockPos blockPos){

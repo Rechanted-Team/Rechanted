@@ -145,6 +145,7 @@ public class RechantedCommonConfigs {
         public static final ModConfigSpec.IntValue RARITY_5_GRINDSTONE_XP_MAX;
         public static final ModConfigSpec.ConfigValue<List<? extends String>> RARITY_5_ENCHANTMENTS;
 
+        public static final ModConfigSpec.ConfigValue<List<? extends String>> VALID_ENCHANTING_POWER_BLOCKS;
         public static final ModConfigSpec.ConfigValue<? extends String> GRINDSTONE_RESULT_ITEM;
         public static final ModConfigSpec.ConfigValue<List<? extends String>> COMMON_GEM_POOL;
         public static final ModConfigSpec.ConfigValue<List<? extends String>> RARE_GEM_POOL;
@@ -595,6 +596,12 @@ public class RechantedCommonConfigs {
                 BUILDER.translation("config.rechanted.configs_for_all_rarities.name")
                                 .comment("Global settings that apply to all rarity tiers")
                                 .push("Configs for all rarities");
+                ArrayList<String> valid_enchanting_blocks = new ArrayList<>();
+                valid_enchanting_blocks.add("minecraft:bookshelf");
+                valid_enchanting_blocks.add("minecraft:chiseled_bookshelf");
+                VALID_ENCHANTING_POWER_BLOCKS = BUILDER.translation("config.rechanted.valid_enchanting_power_blocks.title")
+                                .defineList("valid_enchanting_power_blocks", valid_enchanting_blocks,
+                                                () -> "minecraft:bookshelf", s -> s instanceof String);
                 GRINDSTONE_RESULT_ITEM = BUILDER.translation("config.rechanted.grindstone_result_item.title")
                                 .define("grindstone_result_item", "minecraft:paper");
                 BUILDER.comment("Global weighted pools used by bonus item rewards.",

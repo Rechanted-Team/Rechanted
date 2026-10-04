@@ -379,6 +379,8 @@
   "config.rechanted.fortune_nerf.tooltip": "Controla cómo el encantamiento Fortuna afecta los drops de bloques",
   "config.rechanted.grindstone_result_item.title": "Objeto resultante de afiladora",
   "config.rechanted.grindstone_result_item.tooltip": "Objeto recibido al deshacer cualquier libro encantado",
+  "config.rechanted.valid_enchanting_power_blocks.title": "Bloques de estantería válidos",
+  "config.rechanted.valid_enchanting_power_blocks.tooltip": "Lista de bloques que no son de suelo y que aumentan el poder de encantamiento",
   "config.rechanted.announce_enchantments.title": "Encantamientos anunciados",
   "config.rechanted.announce_enchantments.tooltip": "Encantamientos que se anunciarán al encontrarse en botín",
   "config.rechanted.announce_chance_gem.title": "Anunciar Gema de Probabilidad",
@@ -419,5 +421,6 @@
   "effect.rechanted.berserk_cooldown": "Enfriamiento de Frenesí",
   "effect.rechanted.blitz": "Blitz",
   "effect.rechanted.blitz_cooldown": "Enfriamiento de Blitz",
-  "effect.rechanted.satiated": "Saciado"
+  "effect.rechanted.satiated": "Saciado",
+  "config.rechanted.use_greyscale_gui.title": "Reemplaza las interfaces de la mesa de encantamientos y de las tablas de botín por versiones en escala de grises"
 }

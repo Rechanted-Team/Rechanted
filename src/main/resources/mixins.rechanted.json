@@ -7,7 +7,8 @@
   "mixins": [
     "FortuneMixin",
     "EnchantmentTableBlockMixin",
-    "ItemStackDurabilityWarningMixin"
+    "ItemStackDurabilityWarningMixin",
+    "ChiseledBookShelfBlockEntityMixin"
   ],
 
   "client": [
