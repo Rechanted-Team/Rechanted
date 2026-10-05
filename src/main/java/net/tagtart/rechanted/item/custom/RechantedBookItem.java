@@ -165,7 +165,6 @@ public class RechantedBookItem extends Item {
 
         List<Component> incompatibilityTooltipLines = UtilFunctions.getIncompatibilityTooltipLines(enchantmentHolder, context, tooltipFlag);
         if (!incompatibilityTooltipLines.isEmpty()) {
-            tooltipComponents.add(Component.literal(" "));
             tooltipComponents.addAll(incompatibilityTooltipLines);
         }
 
