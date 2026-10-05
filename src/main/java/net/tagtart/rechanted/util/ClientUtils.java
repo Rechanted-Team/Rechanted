@@ -1,11 +1,13 @@
 package net.tagtart.rechanted.util;
 
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.Matrix4f;
@@ -46,4 +48,18 @@ public class ClientUtils {
         return new Vector2i(width, height);
     }
 
+    public static void renderItemWithShadow(GuiGraphics gfx, ItemStack stack, int x, int y) {
+        gfx.flush(); // Must do this call or black shader color set later can still persist in future draw calls
+
+        gfx.pose().pushPose();
+        gfx.pose().translate(1, 1, -1);          // -1 z is important!!!
+        RenderSystem.setShaderColor(0.4f, 0.4f, 0.4f, 1.0f);
+        gfx.renderItem(stack, x, y);
+        gfx.flush(); // Must do this too!
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+        gfx.pose().popPose();
+
+        // Real Item
+        gfx.renderItem(stack, x, y);
+    }
 }

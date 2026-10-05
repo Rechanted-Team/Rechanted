@@ -1,15 +1,13 @@
 package net.tagtart.rechanted.event;
 
+import com.mojang.datafixers.util.Either;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -30,7 +28,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.RenderTooltipEvent;
 import net.neoforged.neoforge.event.AnvilUpdateEvent;
 import net.neoforged.neoforge.event.GrindstoneEvent;
 import net.neoforged.fml.ModList;
@@ -53,15 +53,19 @@ import net.tagtart.rechanted.config.RechantedCommonConfigs;
 import net.tagtart.rechanted.event.enchantment.TelekinesisEnchantmentHandler;
 import net.tagtart.rechanted.enchantment.custom.InquisitiveEnchantmentEffect;
 import net.tagtart.rechanted.item.ModItems;
+import net.tagtart.rechanted.item.custom.RechantedBookItem;
 import net.tagtart.rechanted.networking.data.OpenEnchantTableScreenC2SPayload;
 import net.tagtart.rechanted.networking.data.PlayerPurchaseEnchantedBookC2SPayload;
 import net.tagtart.rechanted.networking.data.TriggerRebirthItemEffectS2CPayload;
+import net.tagtart.rechanted.screen.InlineItemStackIconsComponent;
 import net.tagtart.rechanted.util.AdvancementHelper;
 import net.tagtart.rechanted.util.BookRarityProperties;
 import net.tagtart.rechanted.util.UtilFunctions;
 
 import java.util.*;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @EventBusSubscriber(modid = Rechanted.MOD_ID)
 public class ModGenericEvents {
@@ -467,6 +471,61 @@ public class ModGenericEvents {
             processBookObtainedState(player, serverLevel, stack);
             announceFoundBook(player, stack);
             announceFoundGem(player, stack);
+        }
+    }
+
+    // Extremely silly regex pattern, but if any random string in any tooltips matches this
+    // pattern I'd be really really surprised.
+    private static final Pattern ICON_TOOLTIP_TOKEN = Pattern.compile("\\|\\| ([a-z0-9_.-]+:[a-z0-9_./-]+) \\|\\|");
+
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onGather(RenderTooltipEvent.GatherComponents event) {
+        if (!event.getItemStack().is(ModItems.RECHANTED_BOOK)) return;
+        var elements = event.getTooltipElements();
+
+        int numElements = elements.size(); // Doing add-while-iterating nastiness but it simplifies line breaking
+        for (int i = 0; i < numElements; i++) {
+
+            ArrayList<ItemStack> tooltipStack = new ArrayList<>();
+
+            Optional<FormattedText> left = elements.get(i).left();
+            if (left.isEmpty()) continue;
+
+            // REGEX FOR "|| (anything) ||", grab all instances of this.
+            // Check each, and if it exists in "TOOLTIP_ICON_ITEMS" grab that item stack and add
+            // that stack to dynamic array of item stacks. Pass that into tooltip component.
+            Matcher matcher = ICON_TOOLTIP_TOKEN.matcher(left.get().getString());
+            while (matcher.find()) {
+                String iconIdentifier = matcher.group();
+                HashMap<String, ItemStack> tooltipIconItems = RechantedBookItem.getTooltipIconItems();
+                if (tooltipIconItems.containsKey(iconIdentifier)) {
+                    tooltipStack.add(tooltipIconItems.get(iconIdentifier));
+                }
+            }
+
+            if (!tooltipStack.isEmpty()) {
+
+                // Fits on one row, just replace
+                if (tooltipStack.size() <= 10) {
+                    elements.set(i, Either.right(new InlineItemStackIconsComponent.IconRowTooltip(tooltipStack)));
+                }
+                else {
+
+                    // Dead simple lazy ass loop that forces 10 item stacks max per line of tooltip.
+                    int rowCount = (tooltipStack.size() / 10) + 1;
+                    for (int r = 0; r < rowCount; r++) {
+                        ArrayList<ItemStack> splitStack = new ArrayList<>(tooltipStack.subList(r * 10, Math.min(tooltipStack.size(), (r * 10) + 10)));
+
+                        if (r == 0)
+                            elements.set(i, Either.right(new InlineItemStackIconsComponent.IconRowTooltip(splitStack)));
+                        else
+                            elements.add(i + r, Either.right(new InlineItemStackIconsComponent.IconRowTooltip(splitStack)));
+                    }
+
+                    numElements += rowCount - 1;
+                    i += rowCount - 1;
+                }
+            }
         }
     }
 

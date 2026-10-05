@@ -5,6 +5,7 @@ import net.neoforged.fml.ModLoadingContext;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.tagtart.rechanted.attachments.ModAttachments;
@@ -25,6 +26,7 @@ import net.tagtart.rechanted.item.ModCreativeModeTabs;
 import net.tagtart.rechanted.item.ModItemProperties;
 import net.tagtart.rechanted.item.ModItems;
 import net.tagtart.rechanted.loot.ModLootModifiers;
+import net.tagtart.rechanted.screen.InlineItemStackIconsComponent;
 import net.tagtart.rechanted.screen.ModMenuTypes;
 import net.tagtart.rechanted.screen.RechantedTablePoolDisplayScreen;
 import net.tagtart.rechanted.screen.RechantedTableScreen;
@@ -126,6 +128,11 @@ public class Rechanted {
                     ModEntityModelLayers.TROPHY_BOOK,
                     RechantedTrophyRenderer.TrophyBookModel::createBodyLayer
             );
+        }
+
+        @SubscribeEvent
+        public static void onRegisterTooltips(RegisterClientTooltipComponentFactoriesEvent event) {
+            event.register(InlineItemStackIconsComponent.IconRowTooltip.class, InlineItemStackIconsComponent::new);
         }
     }
 }

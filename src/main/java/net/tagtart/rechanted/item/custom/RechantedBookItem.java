@@ -14,44 +14,70 @@ import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
 import net.tagtart.rechanted.component.ModDataComponents;
+import net.tagtart.rechanted.config.RechantedCommonConfigs;
 import net.tagtart.rechanted.enchantment.ModEnchantments;
 import net.tagtart.rechanted.sound.ModSounds;
 import net.tagtart.rechanted.util.BookRarityProperties;
 import net.tagtart.rechanted.util.UtilFunctions;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Random;
+import java.util.*;
 
 public class RechantedBookItem extends Item {
     private static final String DEFAULT_BOOK_DESCRIPTION = "Mystical powers imbue this book granting its bearers power.";
 
     // Holds the item names for each icon on the tooltip
-    public static final String[] BASE_ICON_ITEMS = {
-            "minecraft:iron_helmet",
-            "minecraft:iron_chestplate",
-            "minecraft:iron_leggings",
-            "minecraft:iron_boots",
-            "minecraft:iron_pickaxe",
-            "minecraft:iron_axe",
-            "minecraft:iron_shovel",
-            "minecraft:iron_hoe",
-            "minecraft:iron_sword",
-            "minecraft:fishing_rod",
-            "minecraft:trident",
-            "minecraft:shield",
-            "minecraft:bow",
-            "minecraft:crossbow",
-            "minecraft:elytra",
-            "minecraft:iron_spear",
-            "minecraft:mace"
-    };
+//    public static final String[] BASE_ICON_ITEMS = {
+//            "minecraft:iron_helmet",
+//            "minecraft:iron_chestplate",
+//            "minecraft:iron_leggings",
+//            "minecraft:iron_boots",
+//            "minecraft:iron_pickaxe",
+//            "minecraft:iron_axe",
+//            "minecraft:iron_shovel",
+//            "minecraft:iron_hoe",
+//            "minecraft:iron_sword",
+//            "minecraft:fishing_rod",
+//            "minecraft:trident",
+//            "minecraft:shield",
+//            "minecraft:bow",
+//            "minecraft:crossbow",
+//            "minecraft:elytra",
+//            "minecraft:iron_spear",
+//            "minecraft:mace"
+//    };
+
+    private static HashMap<String, ItemStack> TOOLTIP_ICON_ITEMS;
+    public static HashMap<String, ItemStack> getTooltipIconItems() {
+        if (TOOLTIP_ICON_ITEMS != null) {
+            return TOOLTIP_ICON_ITEMS;
+        }
+
+        TOOLTIP_ICON_ITEMS = new HashMap<>();
+
+        List<? extends String> tooltipItemNames = RechantedCommonConfigs.COMPATIBLE_TOOLTIP_ITEMS_LIST.get();
+
+        for (String itemName : tooltipItemNames) {
+
+            ItemStack iconStack = UtilFunctions.getItemStackFromString(itemName);
+            if (iconStack == ItemStack.EMPTY || iconStack.is(Items.AIR)) {
+                continue;
+            }
+
+            // Extremely lazy way to do this; but the point is so that the custom tooltip component
+            // that will parse this, see the "|-|" as a unique identifier, and will know this is an
+            // icon stack we should render. It works though.
+            TOOLTIP_ICON_ITEMS.put("|| "+itemName+" ||", iconStack);
+        }
+
+        return TOOLTIP_ICON_ITEMS;
+    }
 
     public RechantedBookItem(Properties properties) {
         super(properties);
@@ -136,6 +162,7 @@ public class RechantedBookItem extends Item {
 
         tooltipComponents.add(getApplicableIcons(enchantmentHolder));
 
+
         List<Component> incompatibilityTooltipLines = UtilFunctions.getIncompatibilityTooltipLines(enchantmentHolder, context, tooltipFlag);
         if (!incompatibilityTooltipLines.isEmpty()) {
             tooltipComponents.add(Component.literal(" "));
@@ -143,6 +170,8 @@ public class RechantedBookItem extends Item {
         }
 
     }
+
+
 
     @Override
     public boolean isFoil(@NotNull ItemStack stack) {
@@ -312,20 +341,45 @@ public class RechantedBookItem extends Item {
         return random.nextInt(100) < successRate;
     }
 
+    public static ArrayList<ItemStack> getApplicableItemStacks(Holder<Enchantment> enchantment) {
+        if (enchantment == null) {
+            return new ArrayList<>();
+        }
+
+
+        ArrayList<ItemStack> enchantable_items = new ArrayList<>();
+        List<? extends String> tooltipItemNames = RechantedCommonConfigs.COMPATIBLE_TOOLTIP_ITEMS_LIST.get();
+
+        // Looping through config array so icon order is the same as defined in config.
+        for (String itemName : tooltipItemNames) {
+            String itemToKeyFormat = "|| "+itemName+" ||";
+            if (!getTooltipIconItems().containsKey(itemToKeyFormat)) continue;
+
+            ItemStack itemStack = getTooltipIconItems().get(itemToKeyFormat);
+            if (itemStack.supportsEnchantment(enchantment))  {
+                enchantable_items.add(itemStack);
+            }
+
+        }
+
+        return enchantable_items;
+    }
+
     public static Component getApplicableIcons(Holder<Enchantment> enchantment) {
         if (enchantment == null) {
             return Component.literal("");
         }
 
         MutableComponent text = Component.translatable("");
-        for (String itemName : BASE_ICON_ITEMS) {
-            ItemStack item = UtilFunctions.getItemStackFromString(itemName);
-            if (item.supportsEnchantment(enchantment)) {
-                // Breaks up the item name to only get the identify string for the icon
-                String[] itemNameParts = itemName.split("[:_]");
-                String coreName = itemNameParts[itemNameParts.length - 1];
-                // Get the icon png from the translatable
-                text.append(Component.translatable("enchantment.icon." + coreName));
+        List<? extends String> tooltipItemNames = RechantedCommonConfigs.COMPATIBLE_TOOLTIP_ITEMS_LIST.get();
+
+        // Looping through config array so icon order is the same as defined in config.
+        for (String itemName : tooltipItemNames) {
+            String itemToKeyFormat = "|| "+itemName+" ||";
+            if (!getTooltipIconItems().containsKey(itemToKeyFormat)) continue;
+
+            if (getTooltipIconItems().get(itemToKeyFormat).supportsEnchantment(enchantment)) {
+                text.append(Component.literal(itemToKeyFormat));
             }
 
         }

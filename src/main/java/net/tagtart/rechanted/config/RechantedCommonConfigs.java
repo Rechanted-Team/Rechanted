@@ -145,6 +145,7 @@ public class RechantedCommonConfigs {
         public static final ModConfigSpec.IntValue RARITY_5_GRINDSTONE_XP_MAX;
         public static final ModConfigSpec.ConfigValue<List<? extends String>> RARITY_5_ENCHANTMENTS;
 
+        public static final ModConfigSpec.ConfigValue<List<? extends String>> COMPATIBLE_TOOLTIP_ITEMS_LIST;
         public static final ModConfigSpec.ConfigValue<List<? extends String>> VALID_ENCHANTING_POWER_BLOCKS;
         public static final ModConfigSpec.ConfigValue<? extends String> GRINDSTONE_RESULT_ITEM;
         public static final ModConfigSpec.ConfigValue<List<? extends String>> COMMON_GEM_POOL;
@@ -596,6 +597,28 @@ public class RechantedCommonConfigs {
                 BUILDER.translation("config.rechanted.configs_for_all_rarities.name")
                                 .comment("Global settings that apply to all rarity tiers")
                                 .push("Configs for all rarities");
+
+                ArrayList<String> compat_tooltip_items = new ArrayList<>();
+                compat_tooltip_items.add("minecraft:iron_helmet");
+                compat_tooltip_items.add("minecraft:iron_chestplate");
+                compat_tooltip_items.add("minecraft:iron_leggings");
+                compat_tooltip_items.add("minecraft:iron_boots");
+                compat_tooltip_items.add("minecraft:iron_pickaxe");
+                compat_tooltip_items.add("minecraft:iron_axe");
+                compat_tooltip_items.add("minecraft:iron_shovel");
+                compat_tooltip_items.add("minecraft:iron_hoe");
+                compat_tooltip_items.add("minecraft:iron_sword");
+                compat_tooltip_items.add("minecraft:fishing_rod");
+                compat_tooltip_items.add("minecraft:trident");
+                compat_tooltip_items.add("minecraft:shield");
+                compat_tooltip_items.add("minecraft:bow");
+                compat_tooltip_items.add("minecraft:crossbow");
+                compat_tooltip_items.add("minecraft:elytra");
+                compat_tooltip_items.add("minecraft:iron_spear");
+                compat_tooltip_items.add("minecraft:mace");
+                COMPATIBLE_TOOLTIP_ITEMS_LIST = BUILDER.translation("config.rechanted.compatible_tooltip_items_list.title")
+                        .defineList("compatible_tooltip_items", compat_tooltip_items,
+                                () -> "minecraft:iron_helmet", s -> s instanceof String);
                 ArrayList<String> valid_enchanting_blocks = new ArrayList<>();
                 valid_enchanting_blocks.add("minecraft:bookshelf");
                 valid_enchanting_blocks.add("minecraft:chiseled_bookshelf");

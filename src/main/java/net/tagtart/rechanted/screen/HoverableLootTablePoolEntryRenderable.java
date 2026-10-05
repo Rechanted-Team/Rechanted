@@ -1,6 +1,7 @@
 package net.tagtart.rechanted.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.datafixers.util.Either;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -9,6 +10,8 @@ import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -31,12 +34,10 @@ public class HoverableLootTablePoolEntryRenderable extends HoverableGuiRenderabl
             .fromNamespaceAndPath(Rechanted.MOD_ID, "textures/gui/enchant_table_loot_pool_entry_box.png");
     private static final ResourceLocation INFO_ICON_LOCATION = ResourceLocation.fromNamespaceAndPath(Rechanted.MOD_ID,
             "textures/gui/info_button.png");
-    private static final float ICON_DEFAULT_SCALE = 0.75f;
-    private static final float ICON_HORIZONTAL_PADDING = 8.0f;
 
     private ShaderInstance gridShader;
 
-    private final int enchantmentInfoOffsetY = 13;
+    private final int enchantmentInfoOffsetY = 14;
     private HoverableWithTooltipGuiRenderable nestedInfoHoverable;
 
     private int propertiesIndex;
@@ -46,7 +47,7 @@ public class HoverableLootTablePoolEntryRenderable extends HoverableGuiRenderabl
 
     // All these strings are cached for rendering pool info:
     private Enchantment enchantment;
-    private String iconList;
+    private ArrayList<ArrayList<ItemStack>> iconLists = new ArrayList<>();
     private String enchantmentName;
     private String enchantmentDropRate;
     private ArrayList<String> levelDropRates;
@@ -129,7 +130,7 @@ public class HoverableLootTablePoolEntryRenderable extends HoverableGuiRenderabl
 
         if (holder == null) {
             enchantment = null;
-            iconList = "";
+            iconLists = new ArrayList<>();
             enchantmentName = "Invalid:Enchantment!";
             enchantmentDropRate = "-";
             levelDropRates.add("-");
@@ -142,7 +143,20 @@ public class HoverableLootTablePoolEntryRenderable extends HoverableGuiRenderabl
         enchantmentName = Component.translatable(nameID).getString();
         enchantmentDropRate = String.format("%6.2f%%",
                 ((float) poolEntry.weight / getBookProperties().enchantmentPoolTotalWeights) * 100.0f);
-        iconList = RechantedBookItem.getApplicableIcons(holder).getString();
+
+        ArrayList<ItemStack> allIcons = RechantedBookItem.getApplicableItemStacks(holder);
+        if (allIcons.size() <= 12) {
+            iconLists.add(allIcons);
+        }
+        else {
+            int rowCount = (allIcons.size() / 12) + 1;
+            for (int r = 0; r < rowCount; r++) {
+                ArrayList<ItemStack> splitStack = new ArrayList<>(allIcons.subList(r * 12, Math.min(allIcons.size(), (r * 12) + 12)));
+                iconLists.add(splitStack);
+            }
+        }
+
+
         for (int i = 0; i < poolEntry.levelWeights.size(); ++i) {
             levelDropRates.add(String.format("%6.2f%%",
                     ((float) poolEntry.levelWeights.get(i) / poolEntry.levelWeightsSum) * 100.0f));
@@ -186,7 +200,7 @@ public class HoverableLootTablePoolEntryRenderable extends HoverableGuiRenderabl
 
         int extraNameOffset = 0;
         if (displayShortenedVersion()) {
-            extraNameOffset = 2;
+            extraNameOffset = 1;
         }
         guiGraphics.drawString(renderFont, enchantmentName, (renderOffsetPosX + 3) * invLabelScaleFac,
                 (getEntryLabelOffsetY() + extraNameOffset) * invLabelScaleFac, 0xFFFFFF, true);
@@ -207,17 +221,32 @@ public class HoverableLootTablePoolEntryRenderable extends HoverableGuiRenderabl
         }
         guiGraphics.pose().popPose();
 
-        float iconScaleFac = getIconScaleForEntry();
+
+//        renderFont.drawInBatch(iconList, (renderOffsetPosX + 2.7f) * invIconScaleFac,
+//                (getEntryLabelOffsetY() - 8) * invIconScaleFac, 0x222222, false, guiGraphics.pose().last().pose(),
+//                guiGraphics.bufferSource(), Font.DisplayMode.NORMAL, 0, 0xF000F0);
+//        renderFont.drawInBatch(iconList, (renderOffsetPosX + 2.2f) * invIconScaleFac,
+//                (getEntryLabelOffsetY() - 9) * invIconScaleFac, 0xFFFFFF, false, guiGraphics.pose().last().pose(),
+//                guiGraphics.bufferSource(), Font.DisplayMode.NORMAL, 0, 0xF000F0);
+
+        float iconScaleFac = 0.612f;
         float invIconScaleFac = 1.0f / iconScaleFac;
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().scale(iconScaleFac, iconScaleFac, iconScaleFac);
-        renderFont.drawInBatch(iconList, (renderOffsetPosX + 2.7f) * invIconScaleFac,
-                (getEntryLabelOffsetY() - 8) * invIconScaleFac, 0x222222, false, guiGraphics.pose().last().pose(),
-                guiGraphics.bufferSource(), Font.DisplayMode.NORMAL, 0, 0xF000F0);
-        renderFont.drawInBatch(iconList, (renderOffsetPosX + 2.2f) * invIconScaleFac,
-                (getEntryLabelOffsetY() - 9) * invIconScaleFac, 0xFFFFFF, false, guiGraphics.pose().last().pose(),
-                guiGraphics.bufferSource(), Font.DisplayMode.NORMAL, 0, 0xF000F0);
-        guiGraphics.pose().popPose();
+
+        for (int row = 0; row < iconLists.size(); row++) {
+            for (int i = 0; i < iconLists.get(row).size(); i++) {
+                guiGraphics.pose().pushPose();
+                guiGraphics.pose().scale(iconScaleFac, iconScaleFac, iconScaleFac);
+                guiGraphics.pose().translate(
+                        ((renderOffsetPosX + 3.0f) + (i * 10.0f)) * invIconScaleFac, // 10f is arbitrary 10px spacing
+                        (((getEntryLabelOffsetY() - 11.0f)) - getIconListTotalHeight()) * invIconScaleFac,
+                        0.0f
+                );
+
+                ClientUtils.renderItemWithShadow(guiGraphics, iconLists.get(row).get(i), 0, row * 16);
+
+                guiGraphics.pose().popPose();
+            }
+        }
 
         float scaleFac = 0.5f;
         float invScaleFac = 1.0f / scaleFac;
@@ -258,35 +287,23 @@ public class HoverableLootTablePoolEntryRenderable extends HoverableGuiRenderabl
     }
 
     public int getEntryLabelBottomY() {
-        int baseOffset = 25;// Based on position after where underlines "_______" are rendered.
+        int baseOffset = 26;// Based on position after where underlines "_______" are rendered.
         if (displayShortenedVersion())
-            baseOffset -= 6;
+            baseOffset -= 7;
 
         // Give 5 extra pixels for each potential level.
-        return (baseOffset) + (levelDropRates.size() * 5);
+        return (baseOffset) + (levelDropRates.size() * 5) + getIconListTotalHeight();
     }
 
     private int getEntryLabelOffsetY() {
-        return (enchantmentInfoOffsetY + renderOffsetPosY) - scrollOffset;
+        return (enchantmentInfoOffsetY + renderOffsetPosY + getIconListTotalHeight()) - scrollOffset;
+    }
+
+    private int getIconListTotalHeight() {
+        return (iconLists.size() - 1) * 10;
     }
 
     private BookRarityProperties getBookProperties() {
         return BookRarityProperties.getAllProperties()[propertiesIndex];
     }
-
-    private float getIconScaleForEntry() {
-        if (iconList.isEmpty()) {
-            return ICON_DEFAULT_SCALE;
-        }
-
-        float maxIconWidth = imageWidth - ICON_HORIZONTAL_PADDING;
-        float iconWidth = renderFont.width(iconList) * ICON_DEFAULT_SCALE;
-        if (iconWidth <= maxIconWidth) {
-            return ICON_DEFAULT_SCALE;
-        }
-
-        float requiredScale = maxIconWidth / renderFont.width(iconList);
-        return Math.min(ICON_DEFAULT_SCALE, requiredScale);
-    }
-
 }
