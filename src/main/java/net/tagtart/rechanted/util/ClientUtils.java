@@ -53,7 +53,7 @@ public class ClientUtils {
 
         gfx.pose().pushPose();
         gfx.pose().translate(1, 1, -1);          // -1 z is important!!!
-        RenderSystem.setShaderColor(0.4f, 0.4f, 0.4f, 1.0f);
+        RenderSystem.setShaderColor(0.1f, 0.1f, 0.1f, 1.0f);
         gfx.renderItem(stack, x, y);
         gfx.flush(); // Must do this too!
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
